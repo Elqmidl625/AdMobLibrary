@@ -393,6 +393,104 @@ func handleConsent() async {
 }
 ```
 
+## Tóm tắt API
+
+### Các hàm chính cho từng loại Ads
+
+#### Banner Ads
+
+| Hàm | Mô tả |
+|-----|-------|
+| `BannerAdView.adaptive()` | Tạo banner adaptive (khuyến nghị) |
+| `BannerAdView.standard()` | Tạo banner 320x50 |
+| `BannerAdView.large()` | Tạo banner 320x100 |
+| `BannerAdView.mediumRectangle()` | Tạo banner 300x250 |
+| `BannerAdView(adUnitID:adSize:)` | Tạo banner với custom ID và size |
+| Reload: `.id(UUID())` | Force reload bằng cách thay đổi id của view |
+
+#### Interstitial Ads
+
+| Hàm | Mô tả |
+|-----|-------|
+| `AdMobLibrary.interstitial.preload()` | Preload ad |
+| `AdMobLibrary.interstitial.load(adUnitID:completion:)` | Load ad với callback |
+| `AdMobLibrary.interstitial.show(onDismiss:onFailed:)` | Hiển thị ad |
+| `AdMobLibrary.interstitial.showAndReload(...)` | Hiển thị và tự động load lại |
+| `AdMobLibrary.interstitial.isLoaded` | Kiểm tra ad đã sẵn sàng |
+| `.interstitialAd(isPresented:onDismiss:)` | SwiftUI View Modifier |
+
+#### Rewarded Ads
+
+| Hàm | Mô tả |
+|-----|-------|
+| `AdMobLibrary.rewarded.preload(adUnitID:)` | Preload ad |
+| `AdMobLibrary.rewarded.load(adUnitID:completion:)` | Load ad với callback |
+| `AdMobLibrary.rewarded.show(onReward:onDismiss:onFailed:)` | Hiển thị ad |
+| `AdMobLibrary.rewarded.showAndReload(...)` | Hiển thị và tự động load lại |
+| `AdMobLibrary.rewarded.isLoaded` | Kiểm tra ad đã sẵn sàng |
+| `AdMobLibrary.rewarded.rewardInfo` | Lấy thông tin phần thưởng |
+| `.rewardedAd(isPresented:onReward:onDismiss:)` | SwiftUI View Modifier |
+
+#### Rewarded Interstitial Ads
+
+| Hàm | Mô tả |
+|-----|-------|
+| `AdMobLibrary.rewardedInterstitial.preload()` | Preload ad |
+| `AdMobLibrary.rewardedInterstitial.load(...)` | Load ad |
+| `AdMobLibrary.rewardedInterstitial.show(...)` | Hiển thị ad |
+| `AdMobLibrary.rewardedInterstitial.showAndReload(...)` | Hiển thị và tự động load lại |
+| `AdMobLibrary.rewardedInterstitial.isLoaded` | Kiểm tra ad đã sẵn sàng |
+
+#### App Open Ads
+
+| Hàm | Mô tả |
+|-----|-------|
+| `AppOpenAdHandler.configureAsync(...)` | Cấu hình auto-show (trong Task) |
+| `AppOpenAdHandler.configure(...)` | Cấu hình auto-show (MainActor) |
+| `AdMobLibrary.appOpen.load(adUnitID:completion:)` | Load ad |
+| `AdMobLibrary.appOpen.show(onDismiss:onFailed:)` | Hiển thị ad |
+| `AdMobLibrary.appOpen.showIfAvailable()` | Hiển thị nếu có sẵn |
+| `AdMobLibrary.appOpen.preload()` | Preload ad |
+| `AdMobLibrary.appOpen.isAdAvailable` | Kiểm tra ad có sẵn |
+| `AdMobLibrary.appOpen.canShowAd` | Kiểm tra có thể hiển thị |
+
+#### Native Ads
+
+| Hàm | Mô tả |
+|-----|-------|
+| `NativeAdView()` | View với layout mặc định |
+| `NativeAdView(customView:)` | View với custom SwiftUI layout |
+| `CustomNativeAdView(nibName:bundle:)` | View với custom XIB |
+| `AdMobLibrary.native.load(adUnitID:completion:)` | Load ad (singleton) |
+| `AdMobLibrary.native.preload()` | Preload ad |
+| `NativeAdLoader().load(...)` | Load ad (instance) |
+| `NativeAdLoader().displayAd(nibName:in:)` | Hiển thị vào container |
+| `NativeAdLoader().refresh()` | Reload ad |
+
+#### GDPR Consent
+
+| Hàm | Mô tả |
+|-----|-------|
+| `ConsentManager.shared.requestConsentInfoUpdate()` | Yêu cầu thông tin consent |
+| `ConsentManager.shared.showConsentFormIfRequired()` | Hiển thị form nếu cần |
+| `ConsentManager.shared.showPrivacyOptionsForm()` | Hiển thị privacy options |
+| `ConsentManager.shared.canRequestAds` | Kiểm tra có thể request ads |
+| `ConsentManager.shared.reset()` | Reset consent (testing) |
+| `.requestAdConsent(onComplete:)` | SwiftUI View Modifier |
+| `PrivacyOptionsButton(title:)` | Nút privacy settings |
+
+### Reload Ads
+
+| Loại Ad | Cách Reload |
+|---------|-------------|
+| Banner | Thay đổi `.id(UUID())` của view |
+| Interstitial | `AdMobLibrary.interstitial.load()` |
+| Rewarded | `AdMobLibrary.rewarded.load()` |
+| Rewarded Interstitial | `AdMobLibrary.rewardedInterstitial.load()` |
+| App Open | `AdMobLibrary.appOpen.load()` |
+| Native | `AdMobLibrary.native.load()` hoặc `loader.refresh()` |
+| Tất cả | `AdMobLibrary.preloadAllAds()` |
+
 ## Test Ads
 
 Thư viện mặc định sử dụng Test Ad Unit IDs của Google. Để test trên thiết bị thật, thêm device ID:
