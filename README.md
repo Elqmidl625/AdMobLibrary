@@ -181,7 +181,9 @@ struct StoreView: View {
             print("Earned \(reward.amount) \(reward.type)")
         }
         .onAppear {
-            AdMobLibrary.rewarded.preload()
+            AdMobLibrary.rewarded.preload(
+                adUnitID: "ca-app-pub-xxxxx/rewarded"  
+            )
         }
     }
 }
@@ -201,15 +203,19 @@ func watchAd() {
 
 ### App Open Ads
 
+> ⚠️ **Lưu ý quan trọng:** App Open Ads chỉ hiển thị khi app **trở lại từ background**, KHÔNG hiển thị lần mở đầu tiên.
+
 ```swift
 @main
 struct MyApp: App {
     init() {
         Task {
+            // 1. Khởi tạo SDK trước
             await AdMobLibrary.initialize()
             
-            // Setup tự động hiển thị khi app foreground
-            AppOpenAdHandler.configure(
+            // 2. Setup App Open Ads (dùng configureAsync trong Task)
+            await AppOpenAdHandler.configureAsync(
+                adUnitID: "ca-app-pub-xxxxx/app-open",  // Hoặc nil để dùng test ID
                 autoShowOnForeground: true,
                 minimumInterval: 60 // Tối thiểu 60 giây giữa các lần hiển thị
             )
@@ -228,6 +234,21 @@ func showAppOpenAd() {
     AdMobLibrary.appOpen.showIfAvailable()
 }
 ```
+
+#### Khi nào App Open Ads hiển thị?
+
+| Tình huống | Hiển thị? |
+|------------|-----------|
+| Mở app lần đầu | ❌ Không |
+| App từ background → foreground | ✅ Có |
+| Chuyển từ app khác về | ✅ Có |
+| Sau khi tắt màn hình và mở lại | ✅ Có |
+
+#### Cách test App Open Ads
+
+1. Chạy app
+2. Nhấn nút Home (hoặc vuốt lên) để đưa app vào background
+3. Mở lại app → App Open Ad sẽ hiển thị
 
 ### Native Ads
 

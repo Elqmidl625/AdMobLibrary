@@ -284,12 +284,26 @@ extension AppOpenAdManager: FullScreenContentDelegate {
 public struct AppOpenAdHandler {
     
     /// Cài đặt App Open Ad trong App init
+    /// - Note: App Open Ads chỉ hiển thị khi app trở lại từ background, KHÔNG hiển thị lần mở đầu tiên
+    @MainActor
     public static func configure(
         adUnitID: String? = nil,
         autoShowOnForeground: Bool = true,
         minimumInterval: TimeInterval = 30
     ) {
-        Task { @MainActor in
+        AppOpenAdManager.shared.autoShowOnForeground = autoShowOnForeground
+        AppOpenAdManager.shared.minimumInterval = minimumInterval
+        AppOpenAdManager.shared.setupAutoShow(adUnitID: adUnitID)
+    }
+    
+    /// Cài đặt App Open Ad (async version)
+    /// Sử dụng khi gọi từ trong Task block
+    public static func configureAsync(
+        adUnitID: String? = nil,
+        autoShowOnForeground: Bool = true,
+        minimumInterval: TimeInterval = 30
+    ) async {
+        await MainActor.run {
             AppOpenAdManager.shared.autoShowOnForeground = autoShowOnForeground
             AppOpenAdManager.shared.minimumInterval = minimumInterval
             AppOpenAdManager.shared.setupAutoShow(adUnitID: adUnitID)
