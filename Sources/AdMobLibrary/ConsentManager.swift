@@ -10,14 +10,14 @@ import GoogleMobileAds
 import UserMessagingPlatform
 import SwiftUI
 
-/// Trạng thái consent
-public enum ConsentStatus {
+/// Trạng thái consent (đổi tên để tránh xung đột với UMP ConsentStatus)
+public enum AdConsentStatus {
     case unknown
     case notRequired
     case required
     case obtained
     
-    init(from umpStatus: UMPConsentStatus) {
+    init(from umpStatus: UserMessagingPlatform.ConsentStatus) {
         switch umpStatus {
         case .unknown:
             self = .unknown
@@ -41,14 +41,14 @@ public final class ConsentManager: ObservableObject {
     public static let shared = ConsentManager()
     
     // MARK: - Published Properties
-    @Published public private(set) var consentStatus: ConsentStatus = .unknown
+    @Published public private(set) var consentStatus: AdConsentStatus = .unknown
     @Published public private(set) var canRequestAds: Bool = false
     @Published public private(set) var isFormAvailable: Bool = false
     @Published public private(set) var error: Error?
     
     // MARK: - Configuration
     /// Cho phép hiển thị debug options (chỉ sử dụng khi dev)
-    public var debugSettings: UMPDebugSettings?
+    public var debugSettings: DebugSettings?
     
     // MARK: - Initialization
     private init() {}
@@ -63,15 +63,15 @@ public final class ConsentManager: ObservableObject {
         tagForUnderAgeOfConsent: Bool = false,
         completion: ((Result<Void, Error>) -> Void)? = nil
     ) {
-        let parameters = UMPRequestParameters()
-        parameters.tagForUnderAgeOfConsent = tagForUnderAgeOfConsent
+        let parameters = RequestParameters()
+        parameters.isTaggedForUnderAgeOfConsent = tagForUnderAgeOfConsent
         
         // Debug settings (chỉ sử dụng khi dev)
         if let debugSettings = debugSettings {
             parameters.debugSettings = debugSettings
         }
         
-        UMPConsentInformation.sharedInstance.requestConsentInfoUpdate(with: parameters) { [weak self] error in
+        ConsentInformation.shared.requestConsentInfoUpdate(with: parameters) { [weak self] error in
             Task { @MainActor in
                 if let error = error {
                     self?.error = error
@@ -123,7 +123,7 @@ public final class ConsentManager: ObservableObject {
             return
         }
         
-        UMPConsentForm.loadAndPresentIfRequired(from: rootVC) { [weak self] error in
+        ConsentForm.loadAndPresentIfRequired(from: rootVC) { [weak self] error in
             Task { @MainActor in
                 if let error = error {
                     self?.error = error
@@ -157,7 +157,7 @@ public final class ConsentManager: ObservableObject {
     
     /// Kiểm tra có thể hiển thị privacy options không
     public var canShowPrivacyOptionsForm: Bool {
-        UMPConsentInformation.sharedInstance.privacyOptionsRequirementStatus == .required
+        ConsentInformation.shared.privacyOptionsRequirementStatus == .required
     }
     
     /// Hiển thị form privacy options (cho phép user thay đổi lựa chọn)
@@ -178,7 +178,7 @@ public final class ConsentManager: ObservableObject {
             return
         }
         
-        UMPConsentForm.presentPrivacyOptionsForm(from: rootVC) { [weak self] error in
+        ConsentForm.presentPrivacyOptionsForm(from: rootVC) { [weak self] error in
             Task { @MainActor in
                 if let error = error {
                     self?.error = error
@@ -197,15 +197,15 @@ public final class ConsentManager: ObservableObject {
     // MARK: - Helper Methods
     
     private func updateConsentStatus() {
-        let info = UMPConsentInformation.sharedInstance
-        consentStatus = ConsentStatus(from: info.consentStatus)
+        let info = ConsentInformation.shared
+        consentStatus = AdConsentStatus(from: info.consentStatus)
         canRequestAds = info.canRequestAds
         isFormAvailable = info.formStatus == .available
     }
     
     /// Reset consent (chỉ sử dụng cho testing)
     public func reset() {
-        UMPConsentInformation.sharedInstance.reset()
+        ConsentInformation.shared.reset()
         updateConsentStatus()
         print("🔄 Consent info reset")
     }
@@ -280,12 +280,12 @@ public extension ConsentManager {
     /// - Parameters:
     ///   - testDeviceHashedIds: Danh sách device ID
     ///   - geography: Giả lập vùng địa lý (EEA, notEEA)
-    /// - Returns: UMPDebugSettings
+    /// - Returns: DebugSettings
     static func createDebugSettings(
         testDeviceHashedIds: [String],
-        geography: UMPDebugGeography = .EEA
-    ) -> UMPDebugSettings {
-        let debugSettings = UMPDebugSettings()
+        geography: DebugGeography = .EEA
+    ) -> DebugSettings {
+        let debugSettings = DebugSettings()
         debugSettings.testDeviceIdentifiers = testDeviceHashedIds
         debugSettings.geography = geography
         return debugSettings
@@ -293,6 +293,7 @@ public extension ConsentManager {
 }
 
 // MARK: - SwiftUI View Modifier
+@MainActor
 public struct ConsentViewModifier: ViewModifier {
     @ObservedObject var consentManager = ConsentManager.shared
     let tagForUnderAgeOfConsent: Bool
@@ -318,6 +319,7 @@ public struct ConsentViewModifier: ViewModifier {
 
 public extension View {
     /// Tự động xử lý consent flow khi view xuất hiện
+    @MainActor
     func requestAdConsent(
         tagForUnderAgeOfConsent: Bool = false,
         adUnitIDs: AdMobManager.AdUnitIDs? = nil,
@@ -332,6 +334,7 @@ public extension View {
 }
 
 // MARK: - Privacy Options Button
+@MainActor
 public struct PrivacyOptionsButton: View {
     @ObservedObject var consentManager = ConsentManager.shared
     let title: String
@@ -348,4 +351,3 @@ public struct PrivacyOptionsButton: View {
         }
     }
 }
-

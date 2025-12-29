@@ -234,32 +234,36 @@ public struct RewardedAdModifier: ViewModifier {
     let onDismiss: (() -> Void)?
     
     public func body(content: Content) -> some View {
-        content
-            .onChange(of: isPresented) { _, newValue in
-                if newValue {
-                    if RewardedAdManager.shared.isLoaded {
-                        RewardedAdManager.shared.show(
-                            onReward: onReward,
-                            onDismiss: {
-                                isPresented = false
-                                onDismiss?()
-                            }
-                        )
-                    } else {
-                        RewardedAdManager.shared.load(adUnitID: adUnitID) { result in
-                            if case .success = result {
-                                RewardedAdManager.shared.show(
-                                    onReward: onReward,
-                                    onDismiss: {
-                                        isPresented = false
-                                        onDismiss?()
-                                    }
-                                )
+        if #available(iOS 17.0, *) {
+            content
+                .onChange(of: isPresented) { _, newValue in
+                    if newValue {
+                        if RewardedAdManager.shared.isLoaded {
+                            RewardedAdManager.shared.show(
+                                onReward: onReward,
+                                onDismiss: {
+                                    isPresented = false
+                                    onDismiss?()
+                                }
+                            )
+                        } else {
+                            RewardedAdManager.shared.load(adUnitID: adUnitID) { result in
+                                if case .success = result {
+                                    RewardedAdManager.shared.show(
+                                        onReward: onReward,
+                                        onDismiss: {
+                                            isPresented = false
+                                            onDismiss?()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
+        } else {
+            // Fallback on earlier versions
+        }
     }
 }
 

@@ -8,8 +8,8 @@
 import SwiftUI
 import GoogleMobileAds
 
-// MARK: - Banner Ad Size
-public enum BannerAdSize {
+// MARK: - Banner Ad Size (đổi tên để tránh xung đột với SDK)
+public enum AdBannerSize {
     case banner           // 320x50
     case largeBanner      // 320x100
     case mediumRectangle  // 300x250
@@ -18,23 +18,23 @@ public enum BannerAdSize {
     case adaptive         // Tự động điều chỉnh theo chiều rộng
     case anchoredAdaptive(width: CGFloat) // Adaptive với chiều rộng cụ thể
     
-    var gadAdSize: AdSize {
+    var gadAdSize: GoogleMobileAds.AdSize {
         switch self {
         case .banner:
-            return AdSizeBanner
+            return GoogleMobileAds.AdSizeBanner
         case .largeBanner:
-            return AdSizeLargeBanner
+            return GoogleMobileAds.AdSizeLargeBanner
         case .mediumRectangle:
-            return AdSizeMediumRectangle
+            return GoogleMobileAds.AdSizeMediumRectangle
         case .fullBanner:
-            return AdSizeFullBanner
+            return GoogleMobileAds.AdSizeFullBanner
         case .leaderboard:
-            return AdSizeLeaderboard
+            return GoogleMobileAds.AdSizeLeaderboard
         case .adaptive:
             let width = UIScreen.main.bounds.width
-            return currentOrientationAnchoredAdaptiveBanner(width: width)
+            return GoogleMobileAds.currentOrientationAnchoredAdaptiveBanner(width: width)
         case .anchoredAdaptive(let width):
-            return currentOrientationAnchoredAdaptiveBanner(width: width)
+            return GoogleMobileAds.currentOrientationAnchoredAdaptiveBanner(width: width)
         }
     }
     
@@ -54,6 +54,16 @@ public enum BannerAdSize {
             return gadAdSize.size.height
         }
     }
+    
+    /// Kiểm tra có phải kích thước adaptive không
+    var isAdaptive: Bool {
+        switch self {
+        case .adaptive, .anchoredAdaptive:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 // MARK: - Banner Ad State
@@ -69,12 +79,12 @@ public class BannerAdState: ObservableObject {
 // MARK: - Banner Ad View (SwiftUI)
 public struct BannerAdView: View {
     let adUnitID: String?
-    let adSize: BannerAdSize
+    let adSize: AdBannerSize
     @StateObject private var adState = BannerAdState()
     
     public init(
         adUnitID: String? = nil,
-        adSize: BannerAdSize = .adaptive
+        adSize: AdBannerSize = .adaptive
     ) {
         self.adUnitID = adUnitID
         self.adSize = adSize
@@ -87,7 +97,7 @@ public struct BannerAdView: View {
             adState: adState
         )
         .frame(
-            width: adSize == .adaptive ? nil : adSize.gadAdSize.size.width,
+            width: adSize.isAdaptive ? nil : adSize.gadAdSize.size.width,
             height: adState.isLoaded ? adState.adSize.height : adSize.height
         )
     }
@@ -96,11 +106,11 @@ public struct BannerAdView: View {
 // MARK: - UIViewRepresentable
 struct BannerAdViewRepresentable: UIViewRepresentable {
     let adUnitID: String
-    let adSize: BannerAdSize
+    let adSize: AdBannerSize
     @ObservedObject var adState: BannerAdState
     
-    func makeUIView(context: Context) -> BannerView {
-        let bannerView = BannerView(adSize: adSize.gadAdSize)
+    func makeUIView(context: Context) -> GoogleMobileAds.BannerView {
+        let bannerView = GoogleMobileAds.BannerView(adSize: adSize.gadAdSize)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
         
@@ -116,7 +126,7 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
         return bannerView
     }
     
-    func updateUIView(_ uiView: BannerView, context: Context) {
+    func updateUIView(_ uiView: GoogleMobileAds.BannerView, context: Context) {
         // Cập nhật root view controller nếu cần
         if uiView.rootViewController == nil {
             uiView.rootViewController = AdMobManager.shared.getRootViewController()
@@ -127,14 +137,14 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
         Coordinator(adState: adState)
     }
     
-    class Coordinator: NSObject, BannerViewDelegate {
+    class Coordinator: NSObject, GoogleMobileAds.BannerViewDelegate {
         let adState: BannerAdState
         
         init(adState: BannerAdState) {
             self.adState = adState
         }
         
-        func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+        func bannerViewDidReceiveAd(_ bannerView: GoogleMobileAds.BannerView) {
             Task { @MainActor in
                 adState.isLoaded = true
                 adState.adSize = bannerView.adSize.size
@@ -143,7 +153,7 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
             }
         }
         
-        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+        func bannerView(_ bannerView: GoogleMobileAds.BannerView, didFailToReceiveAdWithError error: Error) {
             Task { @MainActor in
                 adState.isLoaded = false
                 adState.error = error
@@ -151,23 +161,23 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
             }
         }
         
-        func bannerViewDidRecordImpression(_ bannerView: BannerView) {
+        func bannerViewDidRecordImpression(_ bannerView: GoogleMobileAds.BannerView) {
             print("📊 Banner ad recorded impression")
         }
         
-        func bannerViewDidRecordClick(_ bannerView: BannerView) {
+        func bannerViewDidRecordClick(_ bannerView: GoogleMobileAds.BannerView) {
             print("👆 Banner ad recorded click")
         }
         
-        func bannerViewWillPresentScreen(_ bannerView: BannerView) {
+        func bannerViewWillPresentScreen(_ bannerView: GoogleMobileAds.BannerView) {
             print("📱 Banner ad will present screen")
         }
         
-        func bannerViewWillDismissScreen(_ bannerView: BannerView) {
+        func bannerViewWillDismissScreen(_ bannerView: GoogleMobileAds.BannerView) {
             print("📱 Banner ad will dismiss screen")
         }
         
-        func bannerViewDidDismissScreen(_ bannerView: BannerView) {
+        func bannerViewDidDismissScreen(_ bannerView: GoogleMobileAds.BannerView) {
             print("📱 Banner ad did dismiss screen")
         }
     }
@@ -196,3 +206,5 @@ public extension BannerAdView {
     }
 }
 
+// Type alias for backwards compatibility
+public typealias BannerAdSize = AdBannerSize
