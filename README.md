@@ -10,6 +10,7 @@ Thư viện quảng cáo AdMob hoàn chỉnh cho SwiftUI, hỗ trợ tất cả 
 - ✅ **Rewarded Interstitial Ads** - Quảng cáo toàn màn hình có thưởng
 - ✅ **App Open Ads** - Quảng cáo khi mở app
 - ✅ **Native Ads** - Quảng cáo tự nhiên với custom layout
+- ✅ **Native Ads với Custom XIB** - Hỗ trợ load từ XIB/Storyboard
 - ✅ **GDPR Consent** - Hỗ trợ Google UMP cho EU/EEA
 
 ## Cài đặt
@@ -249,7 +250,7 @@ struct FeedView: View {
     }
 }
 
-// Với custom layout
+// Với custom SwiftUI layout
 NativeAdView { nativeAd in
     AnyView(
         HStack {
@@ -268,6 +269,67 @@ NativeAdView { nativeAd in
     )
 }
 ```
+
+### Native Ads với Custom XIB/Storyboard
+
+#### Bước 1: Tạo file XIB
+
+1. Trong Xcode: **File > New > File > View**
+2. Đặt tên (ví dụ: `CustomNativeAdView.xib`)
+3. Trong XIB, đổi class của root view thành **GADNativeAdView** (từ GoogleMobileAds)
+4. Thêm các UI elements và kết nối với outlets:
+
+| Outlet | Kiểu UI | Mô tả |
+|--------|---------|-------|
+| `headlineView` | UILabel | Tiêu đề ad |
+| `bodyView` | UILabel | Mô tả |
+| `iconView` | UIImageView | Icon app |
+| `callToActionView` | UIButton/UILabel | Nút CTA |
+| `advertiserView` | UILabel | Tên nhà quảng cáo |
+| `mediaView` | GADMediaView | Video/Image |
+| `storeView` | UILabel | Store name |
+| `priceView` | UILabel | Giá |
+
+#### Bước 2: Sử dụng trong code
+
+**SwiftUI:**
+
+```swift
+import AdMobLibrary
+
+struct ContentView: View {
+    var body: some View {
+        // Sử dụng custom XIB
+        CustomNativeAdView(
+            adUnitID: "ca-app-pub-xxxxx/native",
+            nibName: "CustomNativeAdView"  // Tên file XIB (không có .xib)
+        )
+        .frame(height: 300)
+    }
+}
+
+// Nếu XIB nằm trong framework/module khác
+CustomNativeAdView(
+    adUnitID: "ca-app-pub-xxxxx/native",
+    nibName: "CustomNativeAdView",
+    bundle: Bundle(for: MyFrameworkClass.self)
+)
+```
+
+#### Ví dụ cấu trúc XIB
+
+```
+CustomNativeAdView.xib
+└── GADNativeAdView (Custom Class: GADNativeAdView, Module: GoogleMobileAds)
+    ├── UIImageView (iconView outlet)
+    ├── UILabel (headlineView outlet)
+    ├── UILabel (bodyView outlet)
+    ├── UILabel (advertiserView outlet)
+    ├── GADMediaView (mediaView outlet)
+    └── UIButton (callToActionView outlet)
+```
+
+> **Lưu ý:** Thư viện sẽ tự động bind dữ liệu từ native ad vào các outlets đã kết nối trong XIB.
 
 ### GDPR Consent
 
