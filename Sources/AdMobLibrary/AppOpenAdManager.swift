@@ -46,13 +46,31 @@ public final class AppOpenAdManager: NSObject, ObservableObject {
         super.init()
     }
     
+    // MARK: - Private flags
+    private var shouldShowOnNextLoad = false
+    private var isConfigured = false
+    
     // MARK: - Setup
     
     /// Cài đặt tự động hiển thị khi app foreground
     public func setupAutoShow(adUnitID: String? = nil) {
+        guard !isConfigured else {
+            print("⚠️ App Open Ad already configured")
+            return
+        }
+        isConfigured = true
+        
         self.adUnitID = adUnitID ?? AdMobManager.shared.adUnitIDs.appOpen
         
-        // Đăng ký notification khi app foreground
+        // Đăng ký notification khi app sắp vào foreground (để load trước)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(appWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
+        
+        // Đăng ký notification khi app đã active (để hiển thị)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(appDidBecomeActive),
@@ -64,12 +82,35 @@ public final class AppOpenAdManager: NSObject, ObservableObject {
         load()
     }
     
+    @objc private func appWillEnterForeground() {
+        // Bắt đầu load ad sớm khi app sắp vào foreground
+        if !isAdAvailable && !isLoading {
+            print("📱 App will enter foreground - preloading ad...")
+            shouldShowOnNextLoad = autoShowOnForeground && canShowAdByTime
+            load()
+        }
+    }
+    
     @objc private func appDidBecomeActive() {
         guard autoShowOnForeground else { return }
         
         Task { @MainActor in
-            showIfAvailable()
+            if isAdAvailable && canShowAdByTime {
+                _ = show()
+            } else if !isLoading && !isAdAvailable {
+                // Ad chưa sẵn sàng, đánh dấu để hiển thị khi load xong
+                shouldShowOnNextLoad = true
+                load()
+            }
         }
+    }
+    
+    /// Kiểm tra thời gian có cho phép hiển thị không
+    private var canShowAdByTime: Bool {
+        if let lastShowTime = lastShowTime {
+            return Date().timeIntervalSince(lastShowTime) >= minimumInterval
+        }
+        return true
     }
     
     // MARK: - Load Ad
@@ -106,6 +147,7 @@ public final class AppOpenAdManager: NSObject, ObservableObject {
                 if let error = error {
                     self?.isLoaded = false
                     self?.error = error
+                    self?.shouldShowOnNextLoad = false
                     print("❌ App Open ad failed to load: \(error.localizedDescription)")
                     completion?(.failure(error))
                     return
@@ -116,6 +158,14 @@ public final class AppOpenAdManager: NSObject, ObservableObject {
                 self?.loadTime = Date()
                 self?.isLoaded = true
                 print("✅ App Open ad loaded successfully")
+                
+                // Tự động hiển thị nếu đã được đánh dấu
+                if self?.shouldShowOnNextLoad == true && self?.canShowAdByTime == true {
+                    self?.shouldShowOnNextLoad = false
+                    print("📱 Auto-showing ad after load...")
+                    _ = self?.show()
+                }
+                
                 completion?(.success(()))
             }
         }
@@ -248,6 +298,7 @@ extension AppOpenAdManager: FullScreenContentDelegate {
             self.appOpenAd = nil
             self.loadTime = nil
             self.error = error
+            self.shouldShowOnNextLoad = false
             self.onFailed?(error)
             
             // Load lại ad mới
@@ -271,9 +322,11 @@ extension AppOpenAdManager: FullScreenContentDelegate {
             self.appOpenAd = nil
             self.loadTime = nil
             self.lastShowTime = Date()
+            self.shouldShowOnNextLoad = false
             self.onDismiss?()
             
-            // Load lại ad mới
+            // Load lại ad mới ngay lập tức
+            print("🔄 Reloading ad for next foreground...")
             self.load()
         }
     }
@@ -283,8 +336,7 @@ extension AppOpenAdManager: FullScreenContentDelegate {
 /// Helper để tích hợp App Open Ad vào SwiftUI App
 public struct AppOpenAdHandler {
     
-    /// Cài đặt App Open Ad trong App init
-    /// - Note: App Open Ads chỉ hiển thị khi app trở lại từ background, KHÔNG hiển thị lần mở đầu tiên
+    /// Cài đặt App Open Ad trong App init    /// - Note: App Open Ads chỉ hiển thị khi app trở lại từ background, KHÔNG hiển thị lần mở đầu tiên
     @MainActor
     public static func configure(
         adUnitID: String? = nil,
