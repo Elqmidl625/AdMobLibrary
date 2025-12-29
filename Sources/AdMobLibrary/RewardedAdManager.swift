@@ -40,6 +40,13 @@ public final class RewardedAdManager: NSObject, ObservableObject {
     @Published public private(set) var isLoading = false
     @Published public private(set) var error: Error?
     
+    // MARK: - Event Callbacks
+    /// Event callbacks cho Rewarded Ads
+    public var events: FullScreenAdEvents?
+    
+    /// Global callback khi user nhận reward
+    public var onUserEarnedReward: ((AdReward) -> Void)?
+    
     // MARK: - Private Properties
     private var rewardedAd: RewardedAd?
     private var adUnitID: String?
@@ -83,6 +90,10 @@ public final class RewardedAdManager: NSObject, ObservableObject {
                     self?.isLoaded = false
                     self?.error = error
                     print("❌ Rewarded ad failed to load: \(error.localizedDescription)")
+                    
+                    // Trigger event callback
+                    self?.events?.onAdFailedToLoad?(error)
+                    
                     completion?(.failure(error))
                     return
                 }
@@ -91,6 +102,10 @@ public final class RewardedAdManager: NSObject, ObservableObject {
                 self?.rewardedAd?.fullScreenContentDelegate = self
                 self?.isLoaded = true
                 print("✅ Rewarded ad loaded successfully")
+                
+                // Trigger event callback
+                self?.events?.onAdLoaded?()
+                
                 completion?(.success(()))
             }
         }
@@ -149,6 +164,9 @@ public final class RewardedAdManager: NSObject, ObservableObject {
             let reward = AdReward(from: ad.adReward)
             print("🎁 User earned reward: \(reward.amount) \(reward.type)")
             self?.onReward?(reward)
+            
+            // Trigger global reward callback
+            self?.onUserEarnedReward?(reward)
         }
         
         return true
@@ -192,10 +210,16 @@ extension RewardedAdManager: FullScreenContentDelegate {
     
     nonisolated public func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
         print("📊 Rewarded ad recorded impression")
+        Task { @MainActor in
+            self.events?.onAdImpression?()
+        }
     }
     
     nonisolated public func adDidRecordClick(_ ad: FullScreenPresentingAd) {
         print("👆 Rewarded ad recorded click")
+        Task { @MainActor in
+            self.events?.onAdClicked?()
+        }
     }
     
     nonisolated public func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
@@ -205,15 +229,24 @@ extension RewardedAdManager: FullScreenContentDelegate {
             self.rewardedAd = nil
             self.error = error
             self.onFailed?(error)
+            
+            // Trigger event callback
+            self.events?.onAdFailedToPresent?(error)
         }
     }
     
     nonisolated public func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 Rewarded ad will present")
+        Task { @MainActor in
+            self.events?.onAdWillPresent?()
+        }
     }
     
     nonisolated public func adWillDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 Rewarded ad will dismiss")
+        Task { @MainActor in
+            self.events?.onAdWillDismiss?()
+        }
     }
     
     nonisolated public func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
@@ -222,6 +255,9 @@ extension RewardedAdManager: FullScreenContentDelegate {
             self.isLoaded = false
             self.rewardedAd = nil
             self.onDismiss?()
+            
+            // Trigger event callback
+            self.events?.onAdDidDismiss?()
         }
     }
 }
@@ -296,6 +332,13 @@ public final class RewardedInterstitialAdManager: NSObject, ObservableObject {
     @Published public private(set) var isLoading = false
     @Published public private(set) var error: Error?
     
+    // MARK: - Event Callbacks
+    /// Event callbacks cho Rewarded Interstitial Ads
+    public var events: FullScreenAdEvents?
+    
+    /// Global callback khi user nhận reward
+    public var onUserEarnedReward: ((AdReward) -> Void)?
+    
     // MARK: - Private Properties
     private var rewardedInterstitialAd: RewardedInterstitialAd?
     private var adUnitID: String?
@@ -335,6 +378,10 @@ public final class RewardedInterstitialAdManager: NSObject, ObservableObject {
                     self?.isLoaded = false
                     self?.error = error
                     print("❌ Rewarded Interstitial ad failed to load: \(error.localizedDescription)")
+                    
+                    // Trigger event callback
+                    self?.events?.onAdFailedToLoad?(error)
+                    
                     completion?(.failure(error))
                     return
                 }
@@ -343,6 +390,10 @@ public final class RewardedInterstitialAdManager: NSObject, ObservableObject {
                 self?.rewardedInterstitialAd?.fullScreenContentDelegate = self
                 self?.isLoaded = true
                 print("✅ Rewarded Interstitial ad loaded successfully")
+                
+                // Trigger event callback
+                self?.events?.onAdLoaded?()
+                
                 completion?(.success(()))
             }
         }
@@ -394,6 +445,9 @@ public final class RewardedInterstitialAdManager: NSObject, ObservableObject {
             let reward = AdReward(from: ad.adReward)
             print("🎁 User earned reward: \(reward.amount) \(reward.type)")
             self?.onReward?(reward)
+            
+            // Trigger global reward callback
+            self?.onUserEarnedReward?(reward)
         }
         
         return true
@@ -424,10 +478,16 @@ extension RewardedInterstitialAdManager: FullScreenContentDelegate {
     
     nonisolated public func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
         print("📊 Rewarded Interstitial ad recorded impression")
+        Task { @MainActor in
+            self.events?.onAdImpression?()
+        }
     }
     
     nonisolated public func adDidRecordClick(_ ad: FullScreenPresentingAd) {
         print("👆 Rewarded Interstitial ad recorded click")
+        Task { @MainActor in
+            self.events?.onAdClicked?()
+        }
     }
     
     nonisolated public func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
@@ -437,15 +497,24 @@ extension RewardedInterstitialAdManager: FullScreenContentDelegate {
             self.rewardedInterstitialAd = nil
             self.error = error
             self.onFailed?(error)
+            
+            // Trigger event callback
+            self.events?.onAdFailedToPresent?(error)
         }
     }
     
     nonisolated public func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 Rewarded Interstitial ad will present")
+        Task { @MainActor in
+            self.events?.onAdWillPresent?()
+        }
     }
     
     nonisolated public func adWillDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 Rewarded Interstitial ad will dismiss")
+        Task { @MainActor in
+            self.events?.onAdWillDismiss?()
+        }
     }
     
     nonisolated public func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
@@ -454,7 +523,9 @@ extension RewardedInterstitialAdManager: FullScreenContentDelegate {
             self.isLoaded = false
             self.rewardedInterstitialAd = nil
             self.onDismiss?()
+            
+            // Trigger event callback
+            self.events?.onAdDidDismiss?()
         }
     }
 }
-

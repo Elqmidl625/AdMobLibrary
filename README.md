@@ -11,6 +11,7 @@ Thư viện quảng cáo AdMob hoàn chỉnh cho SwiftUI, hỗ trợ tất cả 
 - ✅ **App Open Ads** - Quảng cáo khi mở app
 - ✅ **Native Ads** - Quảng cáo tự nhiên với custom layout
 - ✅ **Native Ads với Custom XIB** - Hỗ trợ load từ XIB/Storyboard
+- ✅ **Event Callbacks** - Bắt tất cả các sự kiện (impression, click, dismiss...)
 - ✅ **GDPR Consent** - Hỗ trợ Google UMP cho EU/EEA
 
 ## Cài đặt
@@ -352,6 +353,242 @@ CustomNativeAdView.xib
 
 > **Lưu ý:** Thư viện sẽ tự động bind dữ liệu từ native ad vào các outlets đã kết nối trong XIB.
 
+### Event Callbacks (Bắt các sự kiện của Ads)
+
+Thư viện hỗ trợ đầy đủ các event callbacks để bắt các hành động/sự kiện của quảng cáo.
+
+#### Các loại Events
+
+**Banner Ad Events (`BannerAdEvents`)**
+
+| Event | Mô tả |
+|-------|-------|
+| `onAdLoaded` | Ad đã được load thành công |
+| `onAdFailedToLoad` | Ad load thất bại |
+| `onAdImpression` | Ad đã ghi nhận impression |
+| `onAdClicked` | Ad đã được click |
+| `onAdWillPresentScreen` | Ad sẽ present full screen |
+| `onAdWillDismissScreen` | Ad sẽ dismiss full screen |
+| `onAdDidDismissScreen` | Ad đã dismiss full screen |
+
+**Full Screen Ad Events (`FullScreenAdEvents`)**
+Áp dụng cho: Interstitial, Rewarded, Rewarded Interstitial, App Open
+
+| Event | Mô tả |
+|-------|-------|
+| `onAdLoaded` | Ad đã được load thành công |
+| `onAdFailedToLoad` | Ad load thất bại |
+| `onAdImpression` | Ad đã ghi nhận impression |
+| `onAdClicked` | Ad đã được click |
+| `onAdFailedToPresent` | Ad present thất bại |
+| `onAdWillPresent` | Ad sẽ present |
+| `onAdWillDismiss` | Ad sẽ dismiss |
+| `onAdDidDismiss` | Ad đã dismiss |
+
+**Native Ad Events (`NativeAdEvents`)**
+
+| Event | Mô tả |
+|-------|-------|
+| `onAdLoaded` | Ad đã được load (trả về NativeAd) |
+| `onAdFailedToLoad` | Ad load thất bại |
+| `onAdImpression` | Ad đã ghi nhận impression |
+| `onAdClicked` | Ad đã được click |
+| `onAdWillPresentScreen` | Ad sẽ present screen |
+| `onAdWillDismissScreen` | Ad sẽ dismiss screen |
+| `onAdDidDismissScreen` | Ad đã dismiss screen |
+| `onAdWillLeaveApplication` | Ad sẽ rời khỏi app |
+
+#### Cách sử dụng Event Callbacks
+
+**Banner Ads**
+
+```swift
+// Truyền events vào View
+BannerAdView(
+    adUnitID: "your-ad-unit-id",
+    adSize: .adaptive,
+    events: BannerAdEvents(
+        onAdLoaded: {
+            print("Banner loaded!")
+        },
+        onAdFailedToLoad: { error in
+            print("Banner failed: \(error)")
+        },
+        onAdImpression: {
+            print("Banner impression recorded")
+        },
+        onAdClicked: {
+            print("Banner clicked!")
+        },
+        onAdWillPresentScreen: {
+            print("Banner will present full screen")
+        },
+        onAdDidDismissScreen: {
+            print("Banner full screen dismissed")
+        }
+    )
+)
+```
+
+**Interstitial Ads**
+
+```swift
+// Setup events
+InterstitialAdManager.shared.events = FullScreenAdEvents(
+    onAdLoaded: {
+        print("Interstitial ready!")
+    },
+    onAdImpression: {
+        print("Interstitial impression")
+    },
+    onAdClicked: {
+        print("Interstitial clicked")
+    },
+    onAdWillPresent: {
+        print("Interstitial will show")
+        // Pause game, music, etc.
+    },
+    onAdDidDismiss: {
+        print("Interstitial closed")
+        // Resume game, music, etc.
+    }
+)
+
+// Load và hiển thị
+AdMobLibrary.interstitial.preload()
+```
+
+**Rewarded Ads**
+
+```swift
+// Setup events
+RewardedAdManager.shared.events = FullScreenAdEvents(
+    onAdLoaded: {
+        print("Rewarded ad ready!")
+    },
+    onAdImpression: {
+        print("Rewarded ad impression")
+    },
+    onAdClicked: {
+        print("Rewarded ad clicked")
+    },
+    onAdDidDismiss: {
+        print("Rewarded ad closed")
+    }
+)
+
+// Global callback khi user nhận reward
+RewardedAdManager.shared.onUserEarnedReward = { reward in
+    print("User earned \(reward.amount) \(reward.type)")
+}
+
+// Hoặc callback trong show()
+AdMobLibrary.rewarded.show(
+    onReward: { reward in
+        coins += reward.amount
+    }
+)
+```
+
+**App Open Ads**
+
+```swift
+// Setup events
+AppOpenAdManager.shared.events = FullScreenAdEvents(
+    onAdLoaded: {
+        print("App Open Ad ready")
+    },
+    onAdImpression: {
+        print("App Open Ad shown")
+    },
+    onAdWillPresent: {
+        print("App Open Ad presenting")
+        // Pause background music
+    },
+    onAdDidDismiss: {
+        print("App Open Ad closed")
+        // Resume app functionality
+    }
+)
+
+// Configure
+await AppOpenAdHandler.configureAsync(autoShowOnForeground: true)
+```
+
+**Native Ads**
+
+```swift
+// Cách 1: Sử dụng NativeAdState
+let adState = NativeAdState(events: NativeAdEvents(
+    onAdLoaded: { nativeAd in
+        print("Native ad loaded: \(nativeAd.headline ?? "")")
+    },
+    onAdImpression: {
+        print("Native ad impression")
+    },
+    onAdClicked: {
+        print("Native ad clicked")
+    }
+))
+
+// Cách 2: Sử dụng NativeAdManager (singleton)
+NativeAdManager.shared.events = NativeAdEvents(
+    onAdLoaded: { nativeAd in
+        print("Native ad loaded!")
+    },
+    onAdClicked: {
+        print("User clicked native ad")
+    }
+)
+
+// Cách 3: Sử dụng NativeAdLoader (instance)
+let loader = NativeAdLoader(events: NativeAdEvents(
+    onAdLoaded: { nativeAd in
+        print("Ad loaded")
+    },
+    onAdClicked: {
+        print("Ad clicked")
+    }
+))
+```
+
+#### Ví dụ Analytics Integration
+
+```swift
+import FirebaseAnalytics // hoặc bất kỳ analytics SDK nào
+
+func setupAdTracking() {
+    // Interstitial tracking
+    InterstitialAdManager.shared.events = FullScreenAdEvents(
+        onAdImpression: {
+            Analytics.logEvent("ad_impression", parameters: [
+                "ad_type": "interstitial"
+            ])
+        },
+        onAdClicked: {
+            Analytics.logEvent("ad_click", parameters: [
+                "ad_type": "interstitial"
+            ])
+        }
+    )
+    
+    // Rewarded tracking
+    RewardedAdManager.shared.events = FullScreenAdEvents(
+        onAdImpression: {
+            Analytics.logEvent("ad_impression", parameters: [
+                "ad_type": "rewarded"
+            ])
+        }
+    )
+    RewardedAdManager.shared.onUserEarnedReward = { reward in
+        Analytics.logEvent("ad_reward_earned", parameters: [
+            "reward_type": reward.type,
+            "reward_amount": reward.amount
+        ])
+    }
+}
+```
+
 ### GDPR Consent
 
 ```swift
@@ -521,14 +758,15 @@ await AdMobLibrary.initialize(
 
 ```
 AdMobLibrary/
-├── AdMobLibrary.swift      # Entry point & exports
-├── AdMobManager.swift      # Singleton quản lý SDK
-├── BannerAdView.swift      # Banner Ads cho SwiftUI
-├── InterstitialAdManager.swift  # Interstitial Ads
-├── RewardedAdManager.swift      # Rewarded & Rewarded Interstitial Ads
-├── AppOpenAdManager.swift       # App Open Ads
-├── NativeAdView.swift           # Native Ads cho SwiftUI
-└── ConsentManager.swift         # GDPR Consent (UMP)
+├── AdMobLibrary.swift          # Entry point & exports
+├── AdMobManager.swift          # Singleton quản lý SDK
+├── AdEventCallbacks.swift      # Định nghĩa các event callbacks
+├── BannerAdView.swift          # Banner Ads cho SwiftUI
+├── InterstitialAdManager.swift # Interstitial Ads
+├── RewardedAdManager.swift     # Rewarded & Rewarded Interstitial Ads
+├── AppOpenAdManager.swift      # App Open Ads
+├── NativeAdView.swift          # Native Ads cho SwiftUI
+└── ConsentManager.swift        # GDPR Consent (UMP)
 ```
 
 ## License

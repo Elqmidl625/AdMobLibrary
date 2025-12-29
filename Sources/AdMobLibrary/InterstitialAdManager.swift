@@ -21,6 +21,10 @@ public final class InterstitialAdManager: NSObject, ObservableObject {
     @Published public private(set) var isLoading = false
     @Published public private(set) var error: Error?
     
+    // MARK: - Event Callbacks
+    /// Event callbacks cho Interstitial Ads
+    public var events: FullScreenAdEvents?
+    
     // MARK: - Private Properties
     private var interstitialAd: InterstitialAd?
     private var adUnitID: String?
@@ -63,6 +67,10 @@ public final class InterstitialAdManager: NSObject, ObservableObject {
                     self?.isLoaded = false
                     self?.error = error
                     print("❌ Interstitial ad failed to load: \(error.localizedDescription)")
+                    
+                    // Trigger event callback
+                    self?.events?.onAdFailedToLoad?(error)
+                    
                     completion?(.failure(error))
                     return
                 }
@@ -71,6 +79,10 @@ public final class InterstitialAdManager: NSObject, ObservableObject {
                 self?.interstitialAd?.fullScreenContentDelegate = self
                 self?.isLoaded = true
                 print("✅ Interstitial ad loaded successfully")
+                
+                // Trigger event callback
+                self?.events?.onAdLoaded?()
+                
                 completion?(.success(()))
             }
         }
@@ -154,10 +166,16 @@ extension InterstitialAdManager: FullScreenContentDelegate {
     
     nonisolated public func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
         print("📊 Interstitial ad recorded impression")
+        Task { @MainActor in
+            self.events?.onAdImpression?()
+        }
     }
     
     nonisolated public func adDidRecordClick(_ ad: FullScreenPresentingAd) {
         print("👆 Interstitial ad recorded click")
+        Task { @MainActor in
+            self.events?.onAdClicked?()
+        }
     }
     
     nonisolated public func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
@@ -167,15 +185,24 @@ extension InterstitialAdManager: FullScreenContentDelegate {
             self.interstitialAd = nil
             self.error = error
             self.onFailed?(error)
+            
+            // Trigger event callback
+            self.events?.onAdFailedToPresent?(error)
         }
     }
     
     nonisolated public func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 Interstitial ad will present")
+        Task { @MainActor in
+            self.events?.onAdWillPresent?()
+        }
     }
     
     nonisolated public func adWillDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 Interstitial ad will dismiss")
+        Task { @MainActor in
+            self.events?.onAdWillDismiss?()
+        }
     }
     
     nonisolated public func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
@@ -184,6 +211,9 @@ extension InterstitialAdManager: FullScreenContentDelegate {
             self.isLoaded = false
             self.interstitialAd = nil
             self.onDismiss?()
+            
+            // Trigger event callback
+            self.events?.onAdDidDismiss?()
         }
     }
 }
@@ -240,4 +270,3 @@ public extension View {
         ))
     }
 }
-

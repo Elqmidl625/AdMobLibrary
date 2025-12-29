@@ -33,6 +33,10 @@ public final class AppOpenAdManager: NSObject, ObservableObject {
     /// Khoảng thời gian tối thiểu giữa các lần hiển thị (giây)
     public var minimumInterval: TimeInterval = 30
     
+    // MARK: - Event Callbacks
+    /// Event callbacks cho App Open Ads
+    public var events: FullScreenAdEvents?
+    
     // MARK: - Private Properties
     private var appOpenAd: AppOpenAd?
     private var adUnitID: String?
@@ -149,6 +153,10 @@ public final class AppOpenAdManager: NSObject, ObservableObject {
                     self?.error = error
                     self?.shouldShowOnNextLoad = false
                     print("❌ App Open ad failed to load: \(error.localizedDescription)")
+                    
+                    // Trigger event callback
+                    self?.events?.onAdFailedToLoad?(error)
+                    
                     completion?(.failure(error))
                     return
                 }
@@ -158,6 +166,9 @@ public final class AppOpenAdManager: NSObject, ObservableObject {
                 self?.loadTime = Date()
                 self?.isLoaded = true
                 print("✅ App Open ad loaded successfully")
+                
+                // Trigger event callback
+                self?.events?.onAdLoaded?()
                 
                 // Tự động hiển thị nếu đã được đánh dấu
                 if self?.shouldShowOnNextLoad == true && self?.canShowAdByTime == true {
@@ -284,10 +295,16 @@ extension AppOpenAdManager: FullScreenContentDelegate {
     
     nonisolated public func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
         print("📊 App Open ad recorded impression")
+        Task { @MainActor in
+            self.events?.onAdImpression?()
+        }
     }
     
     nonisolated public func adDidRecordClick(_ ad: FullScreenPresentingAd) {
         print("👆 App Open ad recorded click")
+        Task { @MainActor in
+            self.events?.onAdClicked?()
+        }
     }
     
     nonisolated public func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
@@ -301,6 +318,9 @@ extension AppOpenAdManager: FullScreenContentDelegate {
             self.shouldShowOnNextLoad = false
             self.onFailed?(error)
             
+            // Trigger event callback
+            self.events?.onAdFailedToPresent?(error)
+            
             // Load lại ad mới
             self.load()
         }
@@ -308,10 +328,16 @@ extension AppOpenAdManager: FullScreenContentDelegate {
     
     nonisolated public func adWillPresentFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 App Open ad will present")
+        Task { @MainActor in
+            self.events?.onAdWillPresent?()
+        }
     }
     
     nonisolated public func adWillDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         print("📱 App Open ad will dismiss")
+        Task { @MainActor in
+            self.events?.onAdWillDismiss?()
+        }
     }
     
     nonisolated public func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
@@ -324,6 +350,9 @@ extension AppOpenAdManager: FullScreenContentDelegate {
             self.lastShowTime = Date()
             self.shouldShowOnNextLoad = false
             self.onDismiss?()
+            
+            // Trigger event callback
+            self.events?.onAdDidDismiss?()
             
             // Load lại ad mới ngay lập tức
             print("🔄 Reloading ad for next foreground...")

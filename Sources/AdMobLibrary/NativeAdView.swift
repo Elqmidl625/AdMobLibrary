@@ -16,10 +16,18 @@ public class NativeAdState: NSObject, ObservableObject {
     @Published public var isLoaded = false
     @Published public var error: Error?
     
+    /// Event callbacks
+    public var events: NativeAdEvents?
+    
     private var adLoader: AdLoader?
     private var adUnitID: String?
     
     public override init() {
+        super.init()
+    }
+    
+    public init(events: NativeAdEvents? = nil) {
+        self.events = events
         super.init()
     }
     
@@ -35,8 +43,10 @@ public class NativeAdState: NSObject, ObservableObject {
         
         guard let rootViewController = AdMobManager.shared.getRootViewController() else {
             isLoading = false
-            error = NSError(domain: "AdMobLibrary", code: -2,
+            let err = NSError(domain: "AdMobLibrary", code: -2,
                           userInfo: [NSLocalizedDescriptionKey: "No root view controller"])
+            error = err
+            events?.onAdFailedToLoad?(err)
             return
         }
         
@@ -64,6 +74,9 @@ extension NativeAdState: AdLoaderDelegate {
             self.isLoading = false
             self.isLoaded = false
             self.error = error
+            
+            // Trigger event callback
+            self.events?.onAdFailedToLoad?(error)
         }
     }
 }
@@ -76,7 +89,49 @@ extension NativeAdState: NativeAdLoaderDelegate {
             self.isLoading = false
             self.isLoaded = true
             self.nativeAd = nativeAd
+            nativeAd.delegate = self
             self.error = nil
+            
+            // Trigger event callback
+            self.events?.onAdLoaded?(nativeAd)
+        }
+    }
+}
+
+// MARK: - NativeAdDelegate
+extension NativeAdState: NativeAdDelegate {
+    nonisolated public func nativeAdDidRecordImpression(_ nativeAd: NativeAd) {
+        print("📊 Native ad recorded impression")
+        Task { @MainActor in
+            self.events?.onAdImpression?()
+        }
+    }
+    
+    nonisolated public func nativeAdDidRecordClick(_ nativeAd: NativeAd) {
+        print("👆 Native ad recorded click")
+        Task { @MainActor in
+            self.events?.onAdClicked?()
+        }
+    }
+    
+    nonisolated public func nativeAdWillPresentScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad will present screen")
+        Task { @MainActor in
+            self.events?.onAdWillPresentScreen?()
+        }
+    }
+    
+    nonisolated public func nativeAdWillDismissScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad will dismiss screen")
+        Task { @MainActor in
+            self.events?.onAdWillDismissScreen?()
+        }
+    }
+    
+    nonisolated public func nativeAdDidDismissScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad did dismiss screen")
+        Task { @MainActor in
+            self.events?.onAdDidDismissScreen?()
         }
     }
 }
@@ -461,12 +516,21 @@ public final class NativeAdLoader: NSObject, ObservableObject {
     @Published public private(set) var isLoaded = false
     @Published public private(set) var error: Error?
     
+    // MARK: - Event Callbacks
+    /// Event callbacks cho Native Ads
+    public var events: NativeAdEvents?
+    
     // MARK: - Private Properties
     private var adLoader: AdLoader?
     private var adUnitID: String?
     private var loadCompletion: ((Result<NativeAd, Error>) -> Void)?
     
     public override init() {
+        super.init()
+    }
+    
+    public init(events: NativeAdEvents? = nil) {
+        self.events = events
         super.init()
     }
     
@@ -638,6 +702,9 @@ extension NativeAdLoader: AdLoaderDelegate {
             self.isLoaded = false
             self.error = error
             self.loadCompletion?(.failure(error))
+            
+            // Trigger event callback
+            self.events?.onAdFailedToLoad?(error)
         }
     }
 }
@@ -649,8 +716,50 @@ extension NativeAdLoader: NativeAdLoaderDelegate {
             self.isLoading = false
             self.isLoaded = true
             self.nativeAd = nativeAd
+            nativeAd.delegate = self
             self.error = nil
             self.loadCompletion?(.success(nativeAd))
+            
+            // Trigger event callback
+            self.events?.onAdLoaded?(nativeAd)
+        }
+    }
+}
+
+// MARK: - NativeAdLoader NativeAdDelegate
+extension NativeAdLoader: NativeAdDelegate {
+    nonisolated public func nativeAdDidRecordImpression(_ nativeAd: NativeAd) {
+        print("📊 Native ad recorded impression")
+        Task { @MainActor in
+            self.events?.onAdImpression?()
+        }
+    }
+    
+    nonisolated public func nativeAdDidRecordClick(_ nativeAd: NativeAd) {
+        print("👆 Native ad recorded click")
+        Task { @MainActor in
+            self.events?.onAdClicked?()
+        }
+    }
+    
+    nonisolated public func nativeAdWillPresentScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad will present screen")
+        Task { @MainActor in
+            self.events?.onAdWillPresentScreen?()
+        }
+    }
+    
+    nonisolated public func nativeAdWillDismissScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad will dismiss screen")
+        Task { @MainActor in
+            self.events?.onAdWillDismissScreen?()
+        }
+    }
+    
+    nonisolated public func nativeAdDidDismissScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad did dismiss screen")
+        Task { @MainActor in
+            self.events?.onAdDidDismissScreen?()
         }
     }
 }
@@ -667,6 +776,10 @@ public final class NativeAdManager: NSObject, ObservableObject {
     @Published public private(set) var isLoading = false
     @Published public private(set) var isLoaded = false
     @Published public private(set) var error: Error?
+    
+    // MARK: - Event Callbacks
+    /// Event callbacks cho Native Ads
+    public var events: NativeAdEvents?
     
     // MARK: - Private Properties
     private var adLoader: AdLoader?
@@ -743,6 +856,9 @@ extension NativeAdManager: AdLoaderDelegate {
             self.isLoaded = false
             self.error = error
             
+            // Trigger event callback
+            self.events?.onAdFailedToLoad?(error)
+            
             if let completion = objc_getAssociatedObject(self, "completion") as? ((Result<NativeAd, Error>) -> Void) {
                 completion(.failure(error))
             }
@@ -758,11 +874,53 @@ extension NativeAdManager: NativeAdLoaderDelegate {
             self.isLoading = false
             self.isLoaded = true
             self.nativeAd = nativeAd
+            nativeAd.delegate = self
             self.error = nil
+            
+            // Trigger event callback
+            self.events?.onAdLoaded?(nativeAd)
             
             if let completion = objc_getAssociatedObject(self, "completion") as? ((Result<NativeAd, Error>) -> Void) {
                 completion(.success(nativeAd))
             }
+        }
+    }
+}
+
+// MARK: - NativeAdManager NativeAdDelegate
+extension NativeAdManager: NativeAdDelegate {
+    nonisolated public func nativeAdDidRecordImpression(_ nativeAd: NativeAd) {
+        print("📊 Native ad recorded impression")
+        Task { @MainActor in
+            self.events?.onAdImpression?()
+        }
+    }
+    
+    nonisolated public func nativeAdDidRecordClick(_ nativeAd: NativeAd) {
+        print("👆 Native ad recorded click")
+        Task { @MainActor in
+            self.events?.onAdClicked?()
+        }
+    }
+    
+    nonisolated public func nativeAdWillPresentScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad will present screen")
+        Task { @MainActor in
+            self.events?.onAdWillPresentScreen?()
+        }
+    }
+    
+    nonisolated public func nativeAdWillDismissScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad will dismiss screen")
+        Task { @MainActor in
+            self.events?.onAdWillDismissScreen?()
+        }
+    }
+    
+    nonisolated public func nativeAdDidDismissScreen(_ nativeAd: NativeAd) {
+        print("📱 Native ad did dismiss screen")
+        Task { @MainActor in
+            self.events?.onAdDidDismissScreen?()
         }
     }
 }

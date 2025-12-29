@@ -73,28 +73,37 @@ public class BannerAdState: ObservableObject {
     @Published public var error: Error?
     @Published public var adSize: CGSize = .zero
     
-    public init() {}
+    /// Event callbacks
+    public var events: BannerAdEvents?
+    
+    public init(events: BannerAdEvents? = nil) {
+        self.events = events
+    }
 }
 
 // MARK: - Banner Ad View (SwiftUI)
 public struct BannerAdView: View {
     let adUnitID: String?
     let adSize: AdBannerSize
+    let events: BannerAdEvents?
     @StateObject private var adState = BannerAdState()
     
     public init(
         adUnitID: String? = nil,
-        adSize: AdBannerSize = .adaptive
+        adSize: AdBannerSize = .adaptive,
+        events: BannerAdEvents? = nil
     ) {
         self.adUnitID = adUnitID
         self.adSize = adSize
+        self.events = events
     }
     
     public var body: some View {
         BannerAdViewRepresentable(
             adUnitID: adUnitID ?? AdMobManager.shared.adUnitIDs.banner,
             adSize: adSize,
-            adState: adState
+            adState: adState,
+            events: events
         )
         .frame(
             width: adSize.isAdaptive ? nil : adSize.gadAdSize.size.width,
@@ -108,6 +117,7 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
     let adUnitID: String
     let adSize: AdBannerSize
     @ObservedObject var adState: BannerAdState
+    let events: BannerAdEvents?
     
     func makeUIView(context: Context) -> GoogleMobileAds.BannerView {
         let bannerView = GoogleMobileAds.BannerView(adSize: adSize.gadAdSize)
@@ -134,14 +144,16 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
     }
     
     func makeCoordinator() -> Coordinator {
-        Coordinator(adState: adState)
+        Coordinator(adState: adState, events: events)
     }
     
     class Coordinator: NSObject, GoogleMobileAds.BannerViewDelegate {
         let adState: BannerAdState
+        let events: BannerAdEvents?
         
-        init(adState: BannerAdState) {
+        init(adState: BannerAdState, events: BannerAdEvents?) {
             self.adState = adState
+            self.events = events
         }
         
         func bannerViewDidReceiveAd(_ bannerView: GoogleMobileAds.BannerView) {
@@ -150,6 +162,10 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
                 adState.adSize = bannerView.adSize.size
                 adState.error = nil
                 print("✅ Banner ad loaded successfully")
+                
+                // Trigger event callback
+                events?.onAdLoaded?()
+                adState.events?.onAdLoaded?()
             }
         }
         
@@ -158,27 +174,51 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
                 adState.isLoaded = false
                 adState.error = error
                 print("❌ Banner ad failed to load: \(error.localizedDescription)")
+                
+                // Trigger event callback
+                events?.onAdFailedToLoad?(error)
+                adState.events?.onAdFailedToLoad?(error)
             }
         }
         
         func bannerViewDidRecordImpression(_ bannerView: GoogleMobileAds.BannerView) {
             print("📊 Banner ad recorded impression")
+            Task { @MainActor in
+                events?.onAdImpression?()
+                adState.events?.onAdImpression?()
+            }
         }
         
         func bannerViewDidRecordClick(_ bannerView: GoogleMobileAds.BannerView) {
             print("👆 Banner ad recorded click")
+            Task { @MainActor in
+                events?.onAdClicked?()
+                adState.events?.onAdClicked?()
+            }
         }
         
         func bannerViewWillPresentScreen(_ bannerView: GoogleMobileAds.BannerView) {
             print("📱 Banner ad will present screen")
+            Task { @MainActor in
+                events?.onAdWillPresentScreen?()
+                adState.events?.onAdWillPresentScreen?()
+            }
         }
         
         func bannerViewWillDismissScreen(_ bannerView: GoogleMobileAds.BannerView) {
             print("📱 Banner ad will dismiss screen")
+            Task { @MainActor in
+                events?.onAdWillDismissScreen?()
+                adState.events?.onAdWillDismissScreen?()
+            }
         }
         
         func bannerViewDidDismissScreen(_ bannerView: GoogleMobileAds.BannerView) {
             print("📱 Banner ad did dismiss screen")
+            Task { @MainActor in
+                events?.onAdDidDismissScreen?()
+                adState.events?.onAdDidDismissScreen?()
+            }
         }
     }
 }
@@ -186,23 +226,23 @@ struct BannerAdViewRepresentable: UIViewRepresentable {
 // MARK: - Convenience Initializers
 public extension BannerAdView {
     /// Tạo banner với kích thước adaptive (khuyến nghị)
-    static func adaptive(adUnitID: String? = nil) -> BannerAdView {
-        BannerAdView(adUnitID: adUnitID, adSize: .adaptive)
+    static func adaptive(adUnitID: String? = nil, events: BannerAdEvents? = nil) -> BannerAdView {
+        BannerAdView(adUnitID: adUnitID, adSize: .adaptive, events: events)
     }
     
     /// Tạo banner chuẩn 320x50
-    static func standard(adUnitID: String? = nil) -> BannerAdView {
-        BannerAdView(adUnitID: adUnitID, adSize: .banner)
+    static func standard(adUnitID: String? = nil, events: BannerAdEvents? = nil) -> BannerAdView {
+        BannerAdView(adUnitID: adUnitID, adSize: .banner, events: events)
     }
     
     /// Tạo banner large 320x100
-    static func large(adUnitID: String? = nil) -> BannerAdView {
-        BannerAdView(adUnitID: adUnitID, adSize: .largeBanner)
+    static func large(adUnitID: String? = nil, events: BannerAdEvents? = nil) -> BannerAdView {
+        BannerAdView(adUnitID: adUnitID, adSize: .largeBanner, events: events)
     }
     
     /// Tạo banner medium rectangle 300x250
-    static func mediumRectangle(adUnitID: String? = nil) -> BannerAdView {
-        BannerAdView(adUnitID: adUnitID, adSize: .mediumRectangle)
+    static func mediumRectangle(adUnitID: String? = nil, events: BannerAdEvents? = nil) -> BannerAdView {
+        BannerAdView(adUnitID: adUnitID, adSize: .mediumRectangle, events: events)
     }
 }
 
