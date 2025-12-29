@@ -195,30 +195,34 @@ public struct InterstitialAdModifier: ViewModifier {
     let onDismiss: (() -> Void)?
     
     public func body(content: Content) -> some View {
-        content
-            .onChange(of: isPresented) { _, newValue in
-                if newValue {
-                    if InterstitialAdManager.shared.isLoaded {
-                        InterstitialAdManager.shared.show(
-                            onDismiss: {
-                                isPresented = false
-                                onDismiss?()
-                            }
-                        )
-                    } else {
-                        InterstitialAdManager.shared.load(adUnitID: adUnitID) { result in
-                            if case .success = result {
-                                InterstitialAdManager.shared.show(
-                                    onDismiss: {
-                                        isPresented = false
-                                        onDismiss?()
-                                    }
-                                )
+        if #available(iOS 17.0, *) {
+            content
+                .onChange(of: isPresented) { _, newValue in
+                    if newValue {
+                        if InterstitialAdManager.shared.isLoaded {
+                            InterstitialAdManager.shared.show(
+                                onDismiss: {
+                                    isPresented = false
+                                    onDismiss?()
+                                }
+                            )
+                        } else {
+                            InterstitialAdManager.shared.load(adUnitID: adUnitID) { result in
+                                if case .success = result {
+                                    InterstitialAdManager.shared.show(
+                                        onDismiss: {
+                                            isPresented = false
+                                            onDismiss?()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
                 }
-            }
+        } else {
+            // Fallback on earlier versions
+        }
     }
 }
 
