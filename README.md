@@ -254,41 +254,77 @@ func showAppOpenAd() {
 ### Native Ads
 
 ```swift
+// Cách 1: Layout mặc định (đơn giản nhất)
+NativeAdView()
+    .frame(height: 200)
+
+// Cách 2: Với Event Callbacks
+NativeAdView(
+    events: NativeAdEvents(
+        onAdLoaded: { nativeAd in
+            print("✅ Ad loaded: \(nativeAd.headline ?? "")")
+        },
+        onAdFailedToLoad: { error in
+            print("❌ Failed: \(error)")
+        },
+        onAdImpression: {
+            print("📊 Impression recorded")
+        },
+        onAdClicked: {
+            print("👆 Ad clicked")
+        }
+    )
+)
+.frame(height: 200)
+
+// Cách 3: Với custom SwiftUI layout + Events
+NativeAdView(
+    customView: { nativeAd in
+        AnyView(
+            HStack {
+                if let icon = nativeAd.icon?.image {
+                    Image(uiImage: icon)
+                        .resizable()
+                        .frame(width: 40, height: 40)
+                }
+                VStack(alignment: .leading) {
+                    Text(nativeAd.headline ?? "")
+                        .font(.headline)
+                    Text(nativeAd.body ?? "")
+                        .font(.caption)
+                }
+            }
+        )
+    },
+    events: NativeAdEvents(
+        onAdLoaded: { _ in print("Loaded") },
+        onAdClicked: { print("Clicked") }
+    )
+)
+
+// Cách 4: Trong danh sách/feed
 struct FeedView: View {
     var body: some View {
         ScrollView {
             LazyVStack {
-                ForEach(items) { item in
-                    ItemView(item: item)
+                ForEach(0..<20, id: \.self) { index in
+                    Text("Item \(index)")
                     
                     // Hiển thị native ad sau mỗi 5 items
-                    if item.index % 5 == 0 {
-                        NativeAdView()
-                            .frame(height: 200)
+                    if index % 5 == 0 && index > 0 {
+                        NativeAdView(
+                            events: NativeAdEvents(
+                                onAdImpression: {
+                                    print("Ad at index \(index) shown")
+                                }
+                            )
+                        )
+                        .frame(height: 200)
                     }
                 }
             }
         }
     }
-}
-
-// Với custom SwiftUI layout
-NativeAdView { nativeAd in
-    AnyView(
-        HStack {
-            if let icon = nativeAd.icon?.image {
-                Image(uiImage: icon)
-                    .resizable()
-                    .frame(width: 40, height: 40)
-            }
-            VStack(alignment: .leading) {
-                Text(nativeAd.headline ?? "")
-                    .font(.headline)
-                Text(nativeAd.body ?? "")
-                    .font(.caption)
-            }
-        }
-    )
 }
 ```
 
@@ -314,28 +350,98 @@ NativeAdView { nativeAd in
 
 #### Bước 2: Sử dụng trong code
 
-**SwiftUI:**
+**SwiftUI - Cơ bản:**
 
 ```swift
 import AdMobLibrary
 
 struct ContentView: View {
     var body: some View {
-        // Sử dụng custom XIB
+        // Sử dụng custom XIB (đơn giản nhất)
         CustomNativeAdView(
-            adUnitID: "ca-app-pub-xxxxx/native",
             nibName: "CustomNativeAdView"  // Tên file XIB (không có .xib)
         )
         .frame(height: 300)
     }
 }
+```
 
-// Nếu XIB nằm trong framework/module khác
-CustomNativeAdView(
-    adUnitID: "ca-app-pub-xxxxx/native",
-    nibName: "CustomNativeAdView",
-    bundle: Bundle(for: MyFrameworkClass.self)
-)
+**SwiftUI - Với Ad Unit ID và Events:**
+
+```swift
+struct ContentView: View {
+    var body: some View {
+        CustomNativeAdView(
+            adUnitID: "ca-app-pub-xxxxx/native",  // Optional, mặc định dùng test ID
+            nibName: "CustomNativeAdView",
+            bundle: nil,  // nil = Bundle.main
+            events: NativeAdEvents(
+                onAdLoaded: { nativeAd in
+                    print("✅ Ad loaded: \(nativeAd.headline ?? "")")
+                    print("   Body: \(nativeAd.body ?? "")")
+                    print("   CTA: \(nativeAd.callToAction ?? "")")
+                },
+                onAdFailedToLoad: { error in
+                    print("❌ Failed to load: \(error.localizedDescription)")
+                },
+                onAdImpression: {
+                    print("📊 Impression recorded")
+                    // Analytics tracking
+                },
+                onAdClicked: {
+                    print("👆 Ad clicked")
+                    // Analytics tracking
+                },
+                onAdWillPresentScreen: {
+                    print("📱 Opening full screen...")
+                },
+                onAdDidDismissScreen: {
+                    print("📱 Full screen closed")
+                },
+                onAdWillLeaveApplication: {
+                    print("🚪 User leaving app")
+                }
+            )
+        )
+        .frame(height: 300)
+    }
+}
+```
+
+**UIKit - Với NativeAdLoader:**
+
+```swift
+import UIKit
+import AdMobLibrary
+
+class NativeAdViewController: UIViewController {
+    @IBOutlet weak var adContainerView: UIView!
+    
+    private lazy var adLoader = NativeAdLoader(events: NativeAdEvents(
+        onAdLoaded: { [weak self] nativeAd in
+            print("✅ Ad loaded")
+            self?.displayAd()
+        },
+        onAdFailedToLoad: { error in
+            print("❌ Failed: \(error)")
+        },
+        onAdClicked: {
+            print("👆 Clicked")
+        }
+    ))
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        adLoader.load()
+    }
+    
+    func displayAd() {
+        adLoader.displayAd(
+            nibName: "CustomNativeAdView",
+            in: adContainerView
+        )
+    }
+}
 ```
 
 #### Ví dụ cấu trúc XIB
@@ -518,20 +624,57 @@ await AppOpenAdHandler.configureAsync(autoShowOnForeground: true)
 **Native Ads**
 
 ```swift
-// Cách 1: Sử dụng NativeAdState
-let adState = NativeAdState(events: NativeAdEvents(
-    onAdLoaded: { nativeAd in
-        print("Native ad loaded: \(nativeAd.headline ?? "")")
-    },
-    onAdImpression: {
-        print("Native ad impression")
-    },
-    onAdClicked: {
-        print("Native ad clicked")
-    }
-))
+// Cách 1: NativeAdView với events (SwiftUI - Đơn giản nhất)
+NativeAdView(
+    events: NativeAdEvents(
+        onAdLoaded: { nativeAd in
+            print("✅ Ad loaded: \(nativeAd.headline ?? "")")
+        },
+        onAdFailedToLoad: { error in
+            print("❌ Failed: \(error)")
+        },
+        onAdImpression: {
+            print("📊 Impression")
+        },
+        onAdClicked: {
+            print("👆 Clicked")
+        }
+    )
+)
 
-// Cách 2: Sử dụng NativeAdManager (singleton)
+// Cách 2: NativeAdView với custom layout + events
+NativeAdView(
+    customView: { nativeAd in
+        AnyView(
+            VStack {
+                Text(nativeAd.headline ?? "")
+                Text(nativeAd.body ?? "")
+            }
+        )
+    },
+    events: NativeAdEvents(
+        onAdLoaded: { _ in print("Loaded") },
+        onAdClicked: { print("Clicked") }
+    )
+)
+
+// Cách 3: CustomNativeAdView với XIB + events
+CustomNativeAdView(
+    nibName: "CustomNativeAdView",
+    events: NativeAdEvents(
+        onAdLoaded: { nativeAd in
+            print("Custom native ad loaded!")
+        },
+        onAdImpression: {
+            print("Impression recorded")
+        },
+        onAdClicked: {
+            print("Ad clicked")
+        }
+    )
+)
+
+// Cách 4: NativeAdManager.shared (singleton - dùng chung toàn app)
 NativeAdManager.shared.events = NativeAdEvents(
     onAdLoaded: { nativeAd in
         print("Native ad loaded!")
@@ -541,7 +684,7 @@ NativeAdManager.shared.events = NativeAdEvents(
     }
 )
 
-// Cách 3: Sử dụng NativeAdLoader (instance)
+// Cách 5: NativeAdLoader (UIKit hoặc cần control chi tiết)
 let loader = NativeAdLoader(events: NativeAdEvents(
     onAdLoaded: { nativeAd in
         print("Ad loaded")
@@ -550,6 +693,7 @@ let loader = NativeAdLoader(events: NativeAdEvents(
         print("Ad clicked")
     }
 ))
+loader.load()
 ```
 
 #### Ví dụ Analytics Integration
@@ -695,12 +839,12 @@ func handleConsent() async {
 
 | Hàm | Mô tả |
 |-----|-------|
-| `NativeAdView()` | View với layout mặc định |
-| `NativeAdView(customView:)` | View với custom SwiftUI layout |
-| `CustomNativeAdView(nibName:bundle:)` | View với custom XIB |
+| `NativeAdView(events:)` | View với layout mặc định + events |
+| `NativeAdView(customView:events:)` | View với custom SwiftUI layout + events |
+| `CustomNativeAdView(nibName:bundle:events:)` | View với custom XIB + events |
 | `AdMobLibrary.native.load(adUnitID:completion:)` | Load ad (singleton) |
 | `AdMobLibrary.native.preload()` | Preload ad |
-| `NativeAdLoader().load(...)` | Load ad (instance) |
+| `NativeAdLoader(events:).load(...)` | Load ad (instance) với events |
 | `NativeAdLoader().displayAd(nibName:in:)` | Hiển thị vào container |
 | `NativeAdLoader().refresh()` | Reload ad |
 

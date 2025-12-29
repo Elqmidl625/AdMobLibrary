@@ -138,16 +138,21 @@ extension NativeAdState: NativeAdDelegate {
 
 // MARK: - Native Ad View (SwiftUI)
 public struct NativeAdView: View {
-    @StateObject private var adState = NativeAdState()
+    @StateObject private var adState: NativeAdState
     let adUnitID: String?
     let customView: ((NativeAd) -> AnyView)?
     
     public init(
         adUnitID: String? = nil,
-        customView: ((NativeAd) -> AnyView)? = nil
+        customView: ((NativeAd) -> AnyView)? = nil,
+        events: NativeAdEvents? = nil
     ) {
         self.adUnitID = adUnitID
         self.customView = customView
+        
+        // Tạo state với events
+        let state = NativeAdState(events: events)
+        _adState = StateObject(wrappedValue: state)
     }
     
     public var body: some View {
@@ -173,6 +178,11 @@ public struct NativeAdView: View {
                 adState.load(adUnitID: adUnitID)
             }
         }
+    }
+    
+    /// Refresh ad
+    public func refresh() {
+        adState.refresh()
     }
 }
 
@@ -359,7 +369,7 @@ typealias NativeAdView_ = GoogleMobileAds.NativeAdView
 // MARK: - Custom XIB Native Ad View (SwiftUI)
 /// View hiển thị Native Ad với custom XIB layout
 public struct CustomNativeAdView: View {
-    @StateObject private var adState = NativeAdState()
+    @StateObject private var adLoader: NativeAdLoader
     let adUnitID: String?
     let nibName: String
     let bundle: Bundle?
@@ -369,28 +379,34 @@ public struct CustomNativeAdView: View {
     ///   - adUnitID: Ad Unit ID (mặc định sử dụng ID trong AdMobManager)
     ///   - nibName: Tên file XIB chứa GADNativeAdView
     ///   - bundle: Bundle chứa XIB (mặc định là main bundle)
+    ///   - events: Event callbacks cho Native Ad
     public init(
         adUnitID: String? = nil,
         nibName: String,
-        bundle: Bundle? = nil
+        bundle: Bundle? = nil,
+        events: NativeAdEvents? = nil
     ) {
         self.adUnitID = adUnitID
         self.nibName = nibName
         self.bundle = bundle
+        
+        // Tạo loader với events
+        let loader = NativeAdLoader(events: events)
+        _adLoader = StateObject(wrappedValue: loader)
     }
     
     public var body: some View {
         Group {
-            if let nativeAd = adState.nativeAd {
-                CustomNibNativeAdViewRepresentable(
-                    nativeAd: nativeAd,
+            if adLoader.isLoaded {
+                CustomNibNativeAdContainer(
+                    adLoader: adLoader,
                     nibName: nibName,
                     bundle: bundle
                 )
-            } else if adState.isLoading {
+            } else if adLoader.isLoading {
                 ProgressView()
                     .frame(height: 120)
-            } else if adState.error != nil {
+            } else if adLoader.error != nil {
                 EmptyView()
             } else {
                 Color.clear
@@ -398,9 +414,34 @@ public struct CustomNativeAdView: View {
             }
         }
         .onAppear {
-            if !adState.isLoaded && !adState.isLoading {
-                adState.load(adUnitID: adUnitID)
+            if !adLoader.isLoaded && !adLoader.isLoading {
+                adLoader.load(adUnitID: adUnitID)
             }
+        }
+    }
+    
+    /// Refresh ad
+    public func refresh() {
+        adLoader.refresh()
+    }
+}
+
+// MARK: - Custom NIB Native Ad Container (UIViewRepresentable)
+struct CustomNibNativeAdContainer: UIViewRepresentable {
+    @ObservedObject var adLoader: NativeAdLoader
+    let nibName: String
+    let bundle: Bundle?
+    
+    func makeUIView(context: Context) -> UIView {
+        let containerView = UIView()
+        containerView.backgroundColor = .clear
+        return containerView
+    }
+    
+    func updateUIView(_ containerView: UIView, context: Context) {
+        // Chỉ hiển thị khi có ad và chưa có subview
+        if adLoader.isLoaded && containerView.subviews.isEmpty {
+            adLoader.displayAd(nibName: nibName, bundle: bundle, in: containerView)
         }
     }
 }
