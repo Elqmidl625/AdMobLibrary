@@ -632,73 +632,237 @@ func handleConsent() async {
 
 | API | Mô tả |
 |-----|-------|
-| `BannerAdView.adaptive()` | Banner adaptive (khuyến nghị) |
-| `BannerAdView.standard()` | Banner 320x50 |
-| `BannerAdView.large()` | Banner 320x100 |
-| `BannerAdView.mediumRectangle()` | Banner 300x250 |
-| `BannerAdView(adUnitID:adSize:events:)` | Custom banner |
+| `BannerAdView.adaptive()` | Tạo banner adaptive (khuyến nghị) |
+| `BannerAdView.standard()` | Tạo banner 320x50 |
+| `BannerAdView.large()` | Tạo banner 320x100 |
+| `BannerAdView.mediumRectangle()` | Tạo banner 300x250 |
+| `BannerAdView(adUnitID: String?, adSize: AdBannerSize, events: BannerAdEvents?)` | Tạo banner với custom ID, size và events |
+| `BannerAdView(adUnitID: String?, adSize: AdBannerSize)` | Tạo banner với custom ID và size |
+| `BannerAdView(adSize: AdBannerSize, events: BannerAdEvents?)` | Tạo banner với custom size và events |
+| `.id(UUID())` | Force reload banner bằng cách thay đổi id |
+
+**Ví dụ:**
+```swift
+BannerAdView.adaptive()
+BannerAdView(adUnitID: "ca-app-pub-xxxxx/banner", adSize: .mediumRectangle)
+BannerAdView(adSize: .adaptive, events: BannerAdEvents(onAdLoaded: { print("Loaded") }))
+```
 
 ### Interstitial Ads
 
 | API | Mô tả |
 |-----|-------|
-| `.preload()` | Preload ad |
-| `.show(onDismiss:onFailed:)` | Hiển thị |
-| `.showAndReload(...)` | Hiển thị + auto reload |
-| `.isLoaded` | Kiểm tra sẵn sàng |
-| `.events` | Event callbacks |
+| `AdMobLibrary.interstitial.load(adUnitID: String?, completion: ((Result<Void, Error>) -> Void)?)` | Load ad với callback |
+| `AdMobLibrary.interstitial.load(adUnitID: String?) async throws` | Load ad với async/await |
+| `AdMobLibrary.interstitial.preload(adUnitID: String?)` | Preload ad |
+| `AdMobLibrary.interstitial.show(onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị ad |
+| `AdMobLibrary.interstitial.showAndReload(onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị và tự động load lại |
+| `AdMobLibrary.interstitial.isLoaded` | Kiểm tra ad đã sẵn sàng (Bool) |
+| `AdMobLibrary.interstitial.isLoading` | Kiểm tra đang load (Bool) |
+| `AdMobLibrary.interstitial.error` | Lỗi nếu có (Error?) |
+| `AdMobLibrary.interstitial.events` | Event callbacks (FullScreenAdEvents?) |
+| `.interstitialAd(isPresented: Binding<Bool>, adUnitID: String?, onDismiss: (() -> Void)?)` | SwiftUI View Modifier |
+
+**Ví dụ:**
+```swift
+AdMobLibrary.interstitial.preload()
+AdMobLibrary.interstitial.load(adUnitID: "ca-app-pub-xxxxx/interstitial") { result in
+    if case .success = result {
+        AdMobLibrary.interstitial.show()
+    }
+}
+```
 
 ### Rewarded Ads
 
 | API | Mô tả |
 |-----|-------|
-| `.preload()` | Preload ad |
-| `.show(onReward:onDismiss:onFailed:)` | Hiển thị |
-| `.showAndReload(...)` | Hiển thị + auto reload |
-| `.isLoaded` | Kiểm tra sẵn sàng |
-| `.rewardInfo` | Thông tin phần thưởng |
-| `.events` | Event callbacks |
-| `.onUserEarnedReward` | Global reward callback |
+| `AdMobLibrary.rewarded.load(adUnitID: String?, completion: ((Result<Void, Error>) -> Void)?)` | Load ad với callback |
+| `AdMobLibrary.rewarded.load(adUnitID: String?) async throws` | Load ad với async/await |
+| `AdMobLibrary.rewarded.preload(adUnitID: String?)` | Preload ad |
+| `AdMobLibrary.rewarded.show(onReward: (AdReward) -> Void, onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị ad |
+| `AdMobLibrary.rewarded.showAndReload(onReward: (AdReward) -> Void, onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị và tự động load lại |
+| `AdMobLibrary.rewarded.isLoaded` | Kiểm tra ad đã sẵn sàng (Bool) |
+| `AdMobLibrary.rewarded.isLoading` | Kiểm tra đang load (Bool) |
+| `AdMobLibrary.rewarded.error` | Lỗi nếu có (Error?) |
+| `AdMobLibrary.rewarded.rewardInfo` | Thông tin phần thưởng (AdReward?) |
+| `AdMobLibrary.rewarded.events` | Event callbacks (FullScreenAdEvents?) |
+| `AdMobLibrary.rewarded.onUserEarnedReward` | Global reward callback ((AdReward) -> Void)? |
+| `.rewardedAd(isPresented: Binding<Bool>, adUnitID: String?, onReward: (AdReward) -> Void, onDismiss: (() -> Void)?)` | SwiftUI View Modifier |
+
+**Ví dụ:**
+```swift
+AdMobLibrary.rewarded.preload()
+AdMobLibrary.rewarded.showAndReload(
+    onReward: { reward in print("Earned: \(reward.amount)") },
+    onDismiss: { print("Closed") }
+)
+```
+
+### Rewarded Interstitial Ads
+
+| API | Mô tả |
+|-----|-------|
+| `AdMobLibrary.rewardedInterstitial.load(adUnitID: String?, completion: ((Result<Void, Error>) -> Void)?)` | Load ad với callback |
+| `AdMobLibrary.rewardedInterstitial.load(adUnitID: String?) async throws` | Load ad với async/await |
+| `AdMobLibrary.rewardedInterstitial.preload(adUnitID: String?)` | Preload ad |
+| `AdMobLibrary.rewardedInterstitial.show(onReward: (AdReward) -> Void, onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị ad |
+| `AdMobLibrary.rewardedInterstitial.showAndReload(onReward: (AdReward) -> Void, onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị và tự động load lại |
+| `AdMobLibrary.rewardedInterstitial.isLoaded` | Kiểm tra ad đã sẵn sàng (Bool) |
+| `AdMobLibrary.rewardedInterstitial.isLoading` | Kiểm tra đang load (Bool) |
+| `AdMobLibrary.rewardedInterstitial.error` | Lỗi nếu có (Error?) |
+| `AdMobLibrary.rewardedInterstitial.events` | Event callbacks (FullScreenAdEvents?) |
+| `AdMobLibrary.rewardedInterstitial.onUserEarnedReward` | Global reward callback ((AdReward) -> Void)? |
+
+**Ví dụ:**
+```swift
+AdMobLibrary.rewardedInterstitial.preload()
+AdMobLibrary.rewardedInterstitial.show(
+    onReward: { reward in print("Reward: \(reward.amount)") },
+    onDismiss: { print("Closed") }
+)
+```
 
 ### App Open Ads
 
 | API | Mô tả |
 |-----|-------|
-| `AppOpenAdHandler.configureAsync(...)` | Cấu hình auto-show |
-| `.showIfAvailable()` | Hiển thị nếu có |
-| `.isAdAvailable` | Kiểm tra có sẵn |
-| `.canShowAd` | Kiểm tra có thể show |
-| `.events` | Event callbacks |
+| `AppOpenAdHandler.configure(adUnitID: String?, autoShowOnForeground: Bool, minimumInterval: TimeInterval)` | Cấu hình auto-show (MainActor) |
+| `AppOpenAdHandler.configureAsync(adUnitID: String?, autoShowOnForeground: Bool, minimumInterval: TimeInterval) async` | Cấu hình auto-show (async) |
+| `AdMobLibrary.appOpen.load(adUnitID: String?, completion: ((Result<Void, Error>) -> Void)?)` | Load ad với callback |
+| `AdMobLibrary.appOpen.load(adUnitID: String?) async throws` | Load ad với async/await |
+| `AdMobLibrary.appOpen.preload(adUnitID: String?)` | Preload ad |
+| `AdMobLibrary.appOpen.show(onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị ad |
+| `AdMobLibrary.appOpen.showIfAvailable(onDismiss: (() -> Void)?, onFailed: ((Error) -> Void)?) -> Bool` | Hiển thị nếu có sẵn và đủ điều kiện |
+| `AdMobLibrary.appOpen.isAdAvailable` | Kiểm tra ad có sẵn và còn hợp lệ (Bool) |
+| `AdMobLibrary.appOpen.canShowAd` | Kiểm tra có thể hiển thị (Bool) |
+| `AdMobLibrary.appOpen.isLoaded` | Kiểm tra ad đã load (Bool) |
+| `AdMobLibrary.appOpen.isLoading` | Kiểm tra đang load (Bool) |
+| `AdMobLibrary.appOpen.isShowing` | Kiểm tra đang hiển thị (Bool) |
+| `AdMobLibrary.appOpen.error` | Lỗi nếu có (Error?) |
+| `AdMobLibrary.appOpen.events` | Event callbacks (FullScreenAdEvents?) |
+| `AdMobLibrary.appOpen.autoShowOnForeground` | Tự động hiển thị khi foreground (Bool) |
+| `AdMobLibrary.appOpen.minimumInterval` | Khoảng thời gian tối thiểu giữa các lần hiển thị (TimeInterval) |
+| `AdMobLibrary.appOpen.adExpirationHours` | Thời gian hết hạn ad (Double, mặc định 4 giờ) |
+
+**Ví dụ:**
+```swift
+await AppOpenAdHandler.configureAsync(
+    adUnitID: "ca-app-pub-xxxxx/app-open",
+    autoShowOnForeground: true,
+    minimumInterval: 60
+)
+AdMobLibrary.appOpen.showIfAvailable()
+```
 
 ### Native Ads
 
 | API | Mô tả |
 |-----|-------|
-| `NativeAdView(events:)` | Layout mặc định |
-| `NativeAdView(customView:events:)` | Custom SwiftUI layout |
-| `CustomNativeAdView(nibName:events:)` | Custom XIB |
-| `NativeAdLoader(events:)` | Load ad thủ công |
-| `.displayAd(nibName:in:)` | Hiển thị vào container |
+| `AdMobLibrary.native.load(adUnitID: String?, completion: ((Result<NativeAd, Error>) -> Void)?)` | Load ad với callback (trả về NativeAd) |
+| `AdMobLibrary.native.load(adUnitID: String?) async throws -> NativeAd` | Load ad với async/await (trả về NativeAd) |
+| `AdMobLibrary.native.preload(adUnitID: String?)` | Preload ad |
+| `AdMobLibrary.native.isLoaded` | Kiểm tra ad đã sẵn sàng (Bool) |
+| `AdMobLibrary.native.isLoading` | Kiểm tra đang load (Bool) |
+| `AdMobLibrary.native.nativeAd` | Lấy NativeAd đã load (NativeAd?) |
+| `AdMobLibrary.native.error` | Lỗi nếu có (Error?) |
+| `AdMobLibrary.native.events` | Event callbacks (NativeAdEvents?) |
+| `NativeAdView(adUnitID: String?, customView: ((NativeAd) -> AnyView)?, events: NativeAdEvents?)` | SwiftUI View với layout mặc định hoặc custom |
+| `NativeAdView(adUnitID: String?, events: NativeAdEvents?)` | SwiftUI View với layout mặc định |
+| `NativeAdView.refresh()` | Reload ad trong NativeAdView |
+| `CustomNativeAdView(adUnitID: String?, nibName: String, bundle: Bundle?, events: NativeAdEvents?)` | SwiftUI View với custom XIB |
+| `CustomNativeAdView.refresh()` | Reload ad trong CustomNativeAdView |
+| `NativeAdLoader(events: NativeAdEvents?)` | Tạo loader cho UIKit/custom XIB |
+| `NativeAdLoader.load(adUnitID: String?, rootViewController: UIViewController?, completion: ((Result<NativeAd, Error>) -> Void)?)` | Load ad với callback |
+| `NativeAdLoader.load(adUnitID: String?, rootViewController: UIViewController?) async throws -> NativeAd` | Load ad với async/await |
+| `NativeAdLoader.displayAd(nibName: String, bundle: Bundle?, in containerView: UIView) -> GADNativeAdView?` | Hiển thị ad vào container từ XIB |
+| `NativeAdLoader.refresh(rootViewController: UIViewController?)` | Reload ad |
+| `NativeAdLoader.isLoaded` | Kiểm tra ad đã load (Bool) |
+| `NativeAdLoader.isLoading` | Kiểm tra đang load (Bool) |
+| `NativeAdLoader.nativeAd` | Lấy NativeAd đã load (NativeAd?) |
+| `NativeAdLoader.error` | Lỗi nếu có (Error?) |
+| `NativeAdState.load(adUnitID: String?)` | Load ad trong NativeAdView (internal) |
+
+**Ví dụ:**
+```swift
+// SwiftUI - Layout mặc định
+NativeAdView(adUnitID: "ca-app-pub-xxxxx/native")
+
+// SwiftUI - Custom layout
+NativeAdView(customView: { nativeAd in
+    AnyView(VStack {
+        Text(nativeAd.headline ?? "")
+    })
+})
+
+// SwiftUI - Custom XIB
+CustomNativeAdView(nibName: "CustomNativeAdView")
+
+// Singleton manager
+AdMobLibrary.native.load(adUnitID: "ca-app-pub-xxxxx/native") { result in
+    if case .success(let nativeAd) = result {
+        print("Loaded: \(nativeAd.headline ?? "")")
+    }
+}
+
+// UIKit
+let loader = NativeAdLoader()
+loader.load(adUnitID: "ca-app-pub-xxxxx/native") { result in
+    if case .success = result {
+        loader.displayAd(nibName: "CustomNativeAdView", in: containerView)
+    }
+}
+```
 
 ### GDPR Consent
 
 | API | Mô tả |
 |-----|-------|
-| `.requestConsentInfoUpdate()` | Yêu cầu thông tin consent |
-| `.showConsentFormIfRequired()` | Hiển thị form nếu cần |
-| `.showPrivacyOptionsForm()` | Hiển thị privacy options |
-| `.canRequestAds` | Kiểm tra có thể request ads |
-| `.reset()` | Reset consent (testing) |
+| `ConsentManager.shared.requestConsentInfoUpdate(tagForUnderAgeOfConsent: Bool, completion: ((Result<Void, Error>) -> Void)?)` | Yêu cầu thông tin consent với callback |
+| `ConsentManager.shared.requestConsentInfoUpdate(tagForUnderAgeOfConsent: Bool) async throws` | Yêu cầu thông tin consent với async/await |
+| `ConsentManager.shared.showConsentFormIfRequired(from viewController: UIViewController?, completion: ((Result<Void, Error>) -> Void)?)` | Hiển thị form nếu cần với callback |
+| `ConsentManager.shared.showConsentFormIfRequired(from viewController: UIViewController?) async throws` | Hiển thị form nếu cần với async/await |
+| `ConsentManager.shared.showPrivacyOptionsForm(from viewController: UIViewController?, completion: ((Result<Void, Error>) -> Void)?)` | Hiển thị privacy options form với callback |
+| `ConsentManager.shared.showPrivacyOptionsForm(from viewController: UIViewController?) async throws` | Hiển thị privacy options form với async/await |
+| `ConsentManager.shared.canRequestAds` | Kiểm tra có thể request ads (Bool) |
+| `ConsentManager.shared.canShowPrivacyOptionsForm` | Kiểm tra có thể hiển thị privacy options (Bool) |
+| `ConsentManager.shared.reset()` | Reset consent (dùng cho testing) |
+| `ConsentManager.shared.requestConsentAndInitializeAds(adUnitIDs: AdMobManager.AdUnitIDs?, completion: ((Result<Void, Error>) -> Void)?)` | Request consent và khởi tạo ads với callback |
+| `ConsentManager.shared.requestConsentAndInitializeAds(adUnitIDs: AdMobManager.AdUnitIDs?) async throws` | Request consent và khởi tạo ads với async/await |
+| `.requestAdConsent(onComplete: @escaping (Bool) -> Void)` | SwiftUI View Modifier để tự động xử lý consent |
+| `PrivacyOptionsButton(title: String)` | SwiftUI View hiển thị nút privacy settings |
+
+**Ví dụ:**
+```swift
+// Tự động xử lý
+ContentView()
+    .requestAdConsent { canShowAds in
+        if canShowAds {
+            AdMobLibrary.preloadAllAds()
+        }
+    }
+
+// Thủ công
+try await ConsentManager.shared.requestConsentInfoUpdate()
+try await ConsentManager.shared.showConsentFormIfRequired()
+if ConsentManager.shared.canRequestAds {
+    await AdMobLibrary.initialize()
+}
+
+// Privacy button
+PrivacyOptionsButton(title: "Manage Ad Preferences")
+```
 
 ### Reload Ads
 
 | Loại | Cách Reload |
 |------|-------------|
 | Banner | `.id(UUID())` trên view |
-| Interstitial | `.load()` |
-| Rewarded | `.load()` |
-| App Open | `.load()` |
-| Native | `.refresh()` |
+| Interstitial | `AdMobLibrary.interstitial.load()` |
+| Rewarded | `AdMobLibrary.rewarded.load()` |
+| Rewarded Interstitial | `AdMobLibrary.rewardedInterstitial.load()` |
+| App Open | `AdMobLibrary.appOpen.load()` |
+| Native | `AdMobLibrary.native.load()` hoặc `.refresh()` |
 | Tất cả | `AdMobLibrary.preloadAllAds()` |
 
 ---
